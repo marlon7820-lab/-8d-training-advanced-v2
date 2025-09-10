@@ -1,0 +1,159 @@
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+
+# --- PAGE CONFIG ---
+st.set_page_config(page_title="Advanced 8D Training App", layout="wide")
+
+# --- LANGUAGE SELECTION ---
+language = st.sidebar.selectbox("Select Language / Seleccione Idioma", ["English", "Español"])
+
+# --- TEXT DICTIONARY ---
+texts = {
+    "English": {
+        "title": "📋 Advanced 8D Training App",
+        "sidebar": "8D Steps",
+        "save_step": "Save Step",
+        "success_saved": "{} saved!",
+        "save_export": "💾 Save & Export",
+        "generate_csv": "Generate CSV",
+        "download": "📥 Download 8D Report",
+        "ai_helper": "💡 AI Helper",
+        "enter_details": "Enter details for {}:",
+        "step_titles": {
+            "D1_Team": "D1 – Establish the Team",
+            "D2_Problem_Description": "D2 – Describe the Problem",
+            "D3_Containment": "D3 – Implement and Verify Containment Actions",
+            "D4_Root_Cause": "D4 – Define and Verify Root Cause",
+            "D5_Corrective_Action": "D5 – Choose and Verify Permanent Corrective Actions",
+            "D6_Implement_Action": "D6 – Implement Corrective Actions",
+            "D7_Prevent_Recurrence": "D7 – Prevent Recurrence",
+            "D8_Congratulate_Team": "D8 – Congratulate the Team"
+        }
+    },
+    "Español": {
+        "title": "📋 Aplicación Avanzada de Entrenamiento 8D",
+        "sidebar": "Pasos 8D",
+        "save_step": "Guardar Paso",
+        "success_saved": "¡{} guardado!",
+        "save_export": "💾 Guardar y Exportar",
+        "generate_csv": "Generar CSV",
+        "download": "📥 Descargar Reporte 8D",
+        "ai_helper": "💡 Asistente AI",
+        "enter_details": "Ingrese los detalles para {}:",
+        "step_titles": {
+            "D1_Team": "D1 – Establecer el Equipo",
+            "D2_Problem_Description": "D2 – Describir el Problema",
+            "D3_Containment": "D3 – Implementar y Verificar Acciones de Contención",
+            "D4_Root_Cause": "D4 – Definir y Verificar la Causa Raíz",
+            "D5_Corrective_Action": "D5 – Elegir y Verificar Acciones Correctivas Permanentes",
+            "D6_Implement_Action": "D6 – Implementar Acciones Correctivas",
+            "D7_Prevent_Recurrence": "D7 – Prevenir la Recurrencia",
+            "D8_Congratulate_Team": "D8 – Felicitar al Equipo"
+        }
+    }
+}
+
+t = texts[language]
+
+# --- SESSION STATE INIT ---
+if "data" not in st.session_state:
+    st.session_state.data = {key: "" for key in t["step_titles"].keys()}
+
+if "why_tree" not in st.session_state:
+    st.session_state.why_tree = []  # For interactive 5Why
+
+# --- SIDEBAR NAVIGATION ---
+st.sidebar.title(t["sidebar"])
+current_step = st.sidebar.radio(t["sidebar"], list(t["step_titles"].keys()))
+
+st.title(t["title"])
+st.markdown("Fill each step below. AI helper and interactive tools included.")
+
+# --- AI HELPER FUNCTION ---
+def ai_helper(step_key, answer):
+    # Example placeholder logic for AI suggestions
+    suggestions = {
+        "D2_Problem_Description": [
+            "What is the exact symptom observed?",
+            "When and where does the problem occur?",
+            "Which product or process is affected?"
+        ],
+        "D4_Root_Cause": [
+            "Why did this problem occur?",
+            "Have you checked the process flow for potential failures?",
+            "Which materials, machines, or methods could be involved?"
+        ],
+        "D5_Corrective_Action": [
+            "What permanent action can prevent recurrence?",
+            "Is this action feasible and measurable?",
+            "Have you considered all stakeholders?"
+        ]
+    }
+    return suggestions.get(step_key, [])
+
+# --- 5WHY TOOL ---
+def interactive_5why():
+    st.subheader("🛠 Interactive 5Why Analysis")
+    n_why = len(st.session_state.why_tree)
+    for i in range(n_why, 5):
+        question = st.text_input(f"Why {i+1}?", key=f"why_{i}")
+        if question:
+            st.session_state.why_tree.append(question)
+        if len(st.session_state.why_tree) >= 5:
+            break
+    if st.session_state.why_tree:
+        st.write("✅ Current 5Why answers:")
+        for idx, ans in enumerate(st.session_state.why_tree, start=1):
+            st.write(f"{idx}. {ans}")
+
+# --- FORM RENDERING ---
+def render_form(step_key):
+    with st.form(step_key):
+        st.subheader(t["step_titles"][step_key])
+        # Text area for main input
+        st.session_state.data[step_key] = st.text_area(
+            t["enter_details"].format(t["step_titles"][step_key]),
+            st.session_state.data[step_key],
+            height=200
+        )
+        # AI Helper section
+        suggestions = ai_helper(step_key, st.session_state.data[step_key])
+        if suggestions:
+            with st.expander(t["ai_helper"]):
+                st.write("Here are some guiding questions:")
+                for s in suggestions:
+                    st.write(f"- {s}")
+        # Interactive 5Why only for Root Cause step
+        if step_key == "D4_Root_Cause":
+            interactive_5why()
+
+        submitted = st.form_submit_button(t["save_step"])
+        if submitted:
+            st.success(t["success_saved"].format(t["step_titles"][step_key]))
+
+render_form(current_step)
+
+# --- SAVE & DOWNLOAD ---
+st.markdown("---")
+st.subheader(t["save_export"])
+
+if st.button(t["generate_csv"]):
+    # Combine main data and 5Why answers
+    combined_data = st.session_state.data.copy()
+    if st.session_state.why_tree:
+        combined_data["5Why_Analysis"] = "\n".join(st.session_state.why_tree)
+    df = pd.DataFrame(list(combined_data.items()), columns=["Step", "Details"])
+    filename = f"8D_Report_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
+    df.to_csv(filename, index=False)
+    st.session_state.generated_csv = filename
+    st.success("CSV file generated successfully!")
+
+if "generated_csv" in st.session_state:
+    with open(st.session_state.generated_csv, "rb") as file:
+        st.download_button(
+            label=t["download"],
+            data=file,
+            file_name=st.session_state.generated_csv,
+            mime="text/csv"
+        )
