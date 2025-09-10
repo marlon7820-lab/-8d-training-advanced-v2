@@ -17,8 +17,9 @@ texts = {
         "success_saved": "{} saved!",
         "save_export": "💾 Save & Export",
         "generate_csv": "Generate CSV",
+        "generate_excel": "Generate Excel",
         "download": "📥 Download 8D Report",
-        "ai_helper": "💡 AI Helper",
+        "ai_helper": "💡 AI Helper (placeholder)",
         "enter_details": "Enter details for {}:",
         "step_titles": {
             "D1_Team": "D1 – Establish the Team",
@@ -38,8 +39,9 @@ texts = {
         "success_saved": "¡{} guardado!",
         "save_export": "💾 Guardar y Exportar",
         "generate_csv": "Generar CSV",
+        "generate_excel": "Generar Excel",
         "download": "📥 Descargar Reporte 8D",
-        "ai_helper": "💡 Asistente AI",
+        "ai_helper": "💡 Asistente AI (placeholder)",
         "enter_details": "Ingrese los detalles para {}:",
         "step_titles": {
             "D1_Team": "D1 – Establecer el Equipo",
@@ -70,29 +72,29 @@ current_step = st.sidebar.radio(t["sidebar"], list(t["step_titles"].keys()))
 st.title(t["title"])
 st.markdown("Fill each step below. AI helper and interactive tools included.")
 
-# --- AI HELPER FUNCTION ---
-def ai_helper(step_key, answer):
-    # Example placeholder logic for AI suggestions
+# --- AI HELPER (placeholder) ---
+def ai_helper_placeholder(step_key, answer):
+    # Placeholder for dynamic AI; can be replaced later with OpenAI API call
     suggestions = {
         "D2_Problem_Description": [
-            "What is the exact symptom observed?",
-            "When and where does the problem occur?",
-            "Which product or process is affected?"
+            "What exactly is happening?",
+            "Where and when does the issue occur?",
+            "Which process or product is affected?"
         ],
         "D4_Root_Cause": [
-            "Why did this problem occur?",
-            "Have you checked the process flow for potential failures?",
-            "Which materials, machines, or methods could be involved?"
+            "Why did this problem happen?",
+            "Which steps in the process could fail?",
+            "What could be contributing factors?"
         ],
         "D5_Corrective_Action": [
-            "What permanent action can prevent recurrence?",
-            "Is this action feasible and measurable?",
-            "Have you considered all stakeholders?"
+            "What permanent solution could prevent recurrence?",
+            "Is it feasible and measurable?",
+            "Who is responsible for implementing it?"
         ]
     }
     return suggestions.get(step_key, [])
 
-# --- 5WHY TOOL ---
+# --- INTERACTIVE 5WHY TOOL ---
 def interactive_5why():
     st.subheader("🛠 Interactive 5Why Analysis")
     n_why = len(st.session_state.why_tree)
@@ -111,20 +113,21 @@ def interactive_5why():
 def render_form(step_key):
     with st.form(step_key):
         st.subheader(t["step_titles"][step_key])
-        # Text area for main input
         st.session_state.data[step_key] = st.text_area(
             t["enter_details"].format(t["step_titles"][step_key]),
             st.session_state.data[step_key],
             height=200
         )
-        # AI Helper section
-        suggestions = ai_helper(step_key, st.session_state.data[step_key])
+
+        # AI helper (placeholder)
+        suggestions = ai_helper_placeholder(step_key, st.session_state.data[step_key])
         if suggestions:
             with st.expander(t["ai_helper"]):
                 st.write("Here are some guiding questions:")
                 for s in suggestions:
                     st.write(f"- {s}")
-        # Interactive 5Why only for Root Cause step
+
+        # Interactive 5Why only for Root Cause
         if step_key == "D4_Root_Cause":
             interactive_5why()
 
@@ -138,17 +141,30 @@ render_form(current_step)
 st.markdown("---")
 st.subheader(t["save_export"])
 
-if st.button(t["generate_csv"]):
-    # Combine main data and 5Why answers
+def generate_report():
     combined_data = st.session_state.data.copy()
     if st.session_state.why_tree:
         combined_data["5Why_Analysis"] = "\n".join(st.session_state.why_tree)
     df = pd.DataFrame(list(combined_data.items()), columns=["Step", "Details"])
-    filename = f"8D_Report_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
-    df.to_csv(filename, index=False)
-    st.session_state.generated_csv = filename
+    return df
+
+# Generate CSV
+if st.button(t["generate_csv"]):
+    df = generate_report()
+    csv_filename = f"8D_Report_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
+    df.to_csv(csv_filename, index=False)
+    st.session_state.generated_csv = csv_filename
     st.success("CSV file generated successfully!")
 
+# Generate Excel
+if st.button(t["generate_excel"]):
+    df = generate_report()
+    excel_filename = f"8D_Report_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.xlsx"
+    df.to_excel(excel_filename, index=False)
+    st.session_state.generated_excel = excel_filename
+    st.success("Excel file generated successfully!")
+
+# Download buttons
 if "generated_csv" in st.session_state:
     with open(st.session_state.generated_csv, "rb") as file:
         st.download_button(
@@ -156,4 +172,13 @@ if "generated_csv" in st.session_state:
             data=file,
             file_name=st.session_state.generated_csv,
             mime="text/csv"
+        )
+
+if "generated_excel" in st.session_state:
+    with open(st.session_state.generated_excel, "rb") as file:
+        st.download_button(
+            label=t["download"] + " (Excel)",
+            data=file,
+            file_name=st.session_state.generated_excel,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
